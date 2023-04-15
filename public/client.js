@@ -4,11 +4,10 @@ import { FBXLoader } from './jsm/loaders/FBXLoader.js'
 import Stats from './jsm/libs/stats.module.js'
 
 const scene = new THREE.Scene()
-scene.add(new THREE.AxesHelper(5))
+scene.background = new THREE.Color( 0xa0a0a0 );
+scene.fog = new THREE.Fog( 0xa0a0a0, 10, 50 );
 
-const light = new THREE.PointLight()
-light.position.set(0.8, 1.4, 1.0)
-scene.add(light)
+scene.add(new THREE.AxesHelper(5))
 
 const light1 = new THREE.PointLight(0xffffff, 4);
 light1.position.set(0, 5, -2);
@@ -21,6 +20,11 @@ scene.add(light2);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
 scene.add(ambientLight);
 
+const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
+hemiLight.position.set( 0, 20, 0 );
+scene.add( hemiLight );
+
+
 const camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
@@ -28,6 +32,7 @@ const camera = new THREE.PerspectiveCamera(
     1000
 )
 camera.position.set(0.8, 0, 1.0)
+camera.lookAt( 0, 1, 0 );
 
 const renderer = new THREE.WebGLRenderer()
 renderer.setSize(window.innerWidth, window.innerHeight)
@@ -37,15 +42,11 @@ const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
 controls.target.set(0, 0, 0)
 
-const geometry = new THREE.BoxGeometry()
-const material = new THREE.MeshBasicMaterial({
-    color: 0x00ff00,
-    wireframe: false,
-})
-const cube = new THREE.Mesh(geometry, material)
-scene.add(cube)
-cube.scale.set(30, 0.5, 30);
-cube.position.y = -0.26
+
+const mesh = new THREE.Mesh( new THREE.PlaneGeometry( 100, 100 ), new THREE.MeshPhongMaterial( { color: 0x999999, depthWrite: false } ) );
+mesh.rotation.x = - Math.PI / 2;
+mesh.receiveShadow = true;
+scene.add( mesh );
 
 let fbxObject ;
 const fbxLoader = new FBXLoader()
@@ -58,8 +59,12 @@ fbxLoader.load(
                 }
                 if (element.isMesh) {
                     element.material.metalness = 0.5;
+                    element.frustumCulled = false
+                    element.castShadow = true
                 }
         })
+
+
         object.scale.set(.01, .01, .01)
         scene.add(object)
         fbxObject = object
@@ -72,35 +77,41 @@ fbxLoader.load(
     }
 )
 const position = new THREE.Vector3(); ;
-const speed = 0.001
+const speed = 0.01
 const delta = new THREE.Vector3()
 
-const keysPressed = [];
+let keyPressed = {};
 
 window.addEventListener('keydown' , (e) => { 
     const key = e.key.toLowerCase();
-    if (!keysPressed.includes(key)) {
-      keysPressed.push(key);
-    }
+    keyPressed['key'] = key
+    keyPressed['hold'] = true;
+    console.log(key)
 })
+document.addEventListener('keyup', function(e) {
+    const key = e.key.toLowerCase();
+    keyPressed['hold'] = false;
+});
 
 const updatePosition = () => { 
     delta.set(0, 0, 0);
-
-    // hareket vektörüne göre değişiklik yap
-    if (keysPressed.includes('w')) {
-      delta.z -= speed;
+    if(keyPressed['hold'] != false){
+        const key = keyPressed['key']
+        switch(key){
+            case 'w':
+                delta.z += speed;
+                break;
+            case 's':
+                delta.z -= speed;
+                break;
+            case 'a' :
+                delta.x += speed;
+                break;
+            case 'd' :
+                delta.x -= speed;
+                break;
+        }
     }
-    if (keysPressed.includes('s')) {
-      delta.z += speed;
-    }
-    if (keysPressed.includes('a')) {
-      delta.x -= speed;
-    }
-    if (keysPressed.includes('d')) {
-      delta.x += speed;
-    }
-      // mevcut pozisyonu güncelle
     position.add(delta);
     fbxObject.position.copy(position);
 }
