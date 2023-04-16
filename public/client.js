@@ -24,7 +24,7 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     1000
 )
-camera.position.set(0, 0, 1)
+camera.position.set(0, 1, 1.2)
 
 const camera2 = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera2.position.set(0, 2, 10);
@@ -54,6 +54,7 @@ scene.add( mesh );
 let mixer;
 let animationReady = false;
 let modelAnimations = [];
+let animationActive = false
 let currentAnimationIndex ; 
 let fbxObject ;
 const fbxLoader = new FBXLoader()
@@ -91,8 +92,43 @@ fbxLoader.load(
                 modelAnimation.tracks.shift()
                 const animationAction = mixer.clipAction(modelAnimation)
                 modelAnimations.push(animationAction)
-                animationReady = true
-                console.log(modelAnimations)  
+                fbxLoader.load('models/Left Strafe Walk.fbx' , (object) => {
+                    let modelAnimation = object.animations[0]
+                    modelAnimation.tracks.shift()
+                    const animationAction = mixer.clipAction(modelAnimation)
+                    modelAnimations.push(animationAction)
+                    fbxLoader.load('models/Right Strafe Walking.fbx' , (object) => {
+                        let modelAnimation = object.animations[0]
+                        modelAnimation.tracks.shift()
+                        const animationAction = mixer.clipAction(modelAnimation)
+                        modelAnimations.push(animationAction)
+                        fbxLoader.load('models/Standing Aim Walk Right.fbx' , (object) => {
+                            let modelAnimation = object.animations[0]
+                            modelAnimation.tracks.shift()
+                            const animationAction = mixer.clipAction(modelAnimation)
+                            modelAnimations.push(animationAction)
+                            console.log(modelAnimations)  
+                        },               
+                        (xhr) => {
+                            console.log( 'Animation Arc Left ' +(xhr.loaded / xhr.total * 100) + '% loaded')
+                        },
+                        (error) => {
+                            console.log(error)
+                        })
+                    },               
+                    (xhr) => {
+                        console.log( 'Animation Right ' +(xhr.loaded / xhr.total * 100) + '% loaded')
+                    },
+                    (error) => {
+                        console.log(error)
+                    })
+                },               
+                (xhr) => {
+                    console.log( 'Animation Left ' +(xhr.loaded / xhr.total * 100) + '% loaded')
+                },
+                (error) => {
+                    console.log(error)
+                })
             },               
             (xhr) => {
                 console.log( 'Animation Backward ' +(xhr.loaded / xhr.total * 100) + '% loaded')
@@ -121,63 +157,82 @@ const speed = 0.01
 const delta = new THREE.Vector3()
 
 let keyPressed = {};
+let keysHeldDown = []
 
 window.addEventListener('keydown' , (e) => { 
     const key = e.key.toLowerCase();
-    keyPressed['key'] = key
     keyPressed['hold'] = true;
-    console.log(key)
+    const controlArrayValue = keysHeldDown.includes(key)
+    if(!controlArrayValue){
+        keysHeldDown.push(key)
+    }
+    console.log(keysHeldDown)
+    
 })
 document.addEventListener('keyup', function(e) {
     const key = e.key.toLowerCase();
     keyPressed['hold'] = false;
-    if(key === 'w'){
-        stopCurrentAnimation(currentAnimationIndex)
-    }
-    if(key === 's'){
-        stopCurrentAnimation(currentAnimationIndex)
-    }
+    keysHeldDown.splice(keysHeldDown.indexOf(key), 1);
+    console.log(keysHeldDown)
+    stopCurrentAnimation()
 });
 
 const updatePosition = () => { 
     delta.set(0, 0, 0);
     if(keyPressed['hold'] != false){
-        const key = keyPressed['key']
-        switch(key){
-            case 'w':
+        if(keysHeldDown.length > 0){
+            if(checkIfThereIs('w') && checkIfThereIs('a')){
                 delta.z += speed;
-                startAnimation(0)
-                break;
-            case 's':
-                delta.z -= speed;
-                startAnimation(1)
-                break;
-            case 'a' :
                 delta.x += speed;
-                break;
-            case 'd' :
+                startAnimation(4);
+            } else if(checkIfThereIs('w') && checkIfThereIs('d')){
+                delta.z += speed;
                 delta.x -= speed;
-                break;
+                startAnimation(4);
+            } else if(checkIfThereIs('w') && keysHeldDown.length === 1){
+                delta.z += speed;
+                startAnimation(0);
+            } else if(checkIfThereIs('s') && keysHeldDown.length === 1){
+                delta.z -= speed;
+                startAnimation(1);
+            } else if(checkIfThereIs('a') && keysHeldDown.length === 1){
+                delta.x += speed;
+                startAnimation(2);
+            } else if(checkIfThereIs('d') && keysHeldDown.length === 1){
+                delta.x -= speed;
+                startAnimation(3);
+            }
         }
     }
     position.add(delta);
     if(fbxObject) fbxObject.position.copy(position);
 }
 
-const startAnimation = (index) => { 
-        if(modelAnimations.length > 0){ 
+const startAnimation =  async(index) => { 
+        if(modelAnimations.length > 0 && animationActive === false){ 
+            await stopCurrentAnimation()
             const currentAnimation = modelAnimations[index]
             currentAnimation.play() 
             currentAnimationIndex = index
+            animationActive = true
         }
 }
-const stopCurrentAnimation = (index) => {
-        if(modelAnimations.length > 0 && currentAnimationIndex != undefined){ 
-            const currentAnimation = modelAnimations[index]
+const stopCurrentAnimation =  () => {
+    return new Promise( resolve => {
+        if(modelAnimations.length > 0 && currentAnimationIndex != undefined && modelAnimations[currentAnimationIndex]){ 
+            const currentAnimation = modelAnimations[currentAnimationIndex]
             currentAnimation.stop() 
             currentAnimationIndex = undefined;
+            animationActive = false
         }
+        resolve()
+    })
 }
+const checkIfThereIs = (value) => {
+    const index = keysHeldDown.indexOf(value);
+    return index != -1 ? true : false
+}
+
 
 window.addEventListener('resize', onWindowResize, false)
 function onWindowResize() {
