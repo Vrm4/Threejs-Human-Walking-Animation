@@ -9,20 +9,13 @@ scene.fog = new THREE.Fog( 0xa0a0a0, 10, 50 );
 
 scene.add(new THREE.AxesHelper(5))
 
-const light1 = new THREE.PointLight(0xffffff, 4);
-light1.position.set(0, 5, -2);
-scene.add(light1);
+const light = new THREE.PointLight()
+light.position.set(2.5, 7.5, 15)
+scene.add(light)
 
-const light2 = new THREE.PointLight(0xffffff, 2);
-light2.position.set(0, -5, 2);
-scene.add(light2);
-
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-scene.add(ambientLight);
-
-const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444 );
-hemiLight.position.set( 0, 20, 0 );
-scene.add( hemiLight );
+const backLight = new THREE.PointLight(0xffffff, 1, 100);
+backLight.position.set(0, 0, -15);
+scene.add(backLight);
 
 
 const camera = new THREE.PerspectiveCamera(
@@ -31,12 +24,21 @@ const camera = new THREE.PerspectiveCamera(
     0.1,
     1000
 )
-camera.position.set(0.8, 0, 1.0)
-camera.lookAt( 0, 1, 0 );
+camera.position.set(0, 0, 1)
 
-const renderer = new THREE.WebGLRenderer()
+const camera2 = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera2.position.set(0, 2, 10);
+scene.add(camera2);
+
+const renderer = new THREE.WebGLRenderer({
+    antialias: true
+})
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement)
+
 
 const controls = new OrbitControls(camera, renderer.domElement)
 controls.enableDamping = true
@@ -48,26 +50,64 @@ mesh.rotation.x = - Math.PI / 2;
 mesh.receiveShadow = true;
 scene.add( mesh );
 
+
+let mixer;
+let animationReady = false;
+let modelAnimations = [];
+let currentAnimationIndex ; 
 let fbxObject ;
 const fbxLoader = new FBXLoader()
 fbxLoader.load(
     'models/Pirate By P. Konstantinov.fbx',
     (object) => {
+        mixer = new THREE.AnimationMixer(object)
         object.traverse(function (element) {
                 if (element.material) {
                     element.material.transparent = false
                 }
                 if (element.isMesh) {
-                    element.material.metalness = 0.5;
+                    element.material.metalness = 0;
+                    element.material.roughness = 0
                     element.frustumCulled = false
                     element.castShadow = true
+                    element.material.opacity = 1.0;
+                    element.material.depthWrite = true;
+                    element.material.depthTest = true;
+                    element.material.side = THREE.DoubleSide;
                 }
         })
-
-
+        
         object.scale.set(.01, .01, .01)
         scene.add(object)
         fbxObject = object
+        fbxLoader.load('models/Walking.fbx' , (object) => {
+            let modelAnimation = object.animations[0]
+            modelAnimation.tracks.shift()
+            const animationAction = mixer.clipAction(modelAnimation)
+            modelAnimations.push(animationAction)
+            animationReady = true 
+            fbxLoader.load('models/Walking Backwards.fbx' , (object) => {
+                let modelAnimation = object.animations[0]
+                modelAnimation.tracks.shift()
+                const animationAction = mixer.clipAction(modelAnimation)
+                modelAnimations.push(animationAction)
+                animationReady = true
+                console.log(modelAnimations)  
+            },               
+            (xhr) => {
+                console.log( 'Animation Backward ' +(xhr.loaded / xhr.total * 100) + '% loaded')
+            },
+            (error) => {
+                console.log(error)
+            })
+        },               
+        (xhr) => {
+            console.log( 'Animation Walk' +(xhr.loaded / xhr.total * 100) + '% loaded')
+        },
+        (error) => {
+            console.log(error)
+        })
+
     },
     (xhr) => {
         console.log((xhr.loaded / xhr.total) * 100 + '% loaded')
@@ -91,6 +131,12 @@ window.addEventListener('keydown' , (e) => {
 document.addEventListener('keyup', function(e) {
     const key = e.key.toLowerCase();
     keyPressed['hold'] = false;
+    if(key === 'w'){
+        stopCurrentAnimation(currentAnimationIndex)
+    }
+    if(key === 's'){
+        stopCurrentAnimation(currentAnimationIndex)
+    }
 });
 
 const updatePosition = () => { 
@@ -100,9 +146,11 @@ const updatePosition = () => {
         switch(key){
             case 'w':
                 delta.z += speed;
+                startAnimation(0)
                 break;
             case 's':
                 delta.z -= speed;
+                startAnimation(1)
                 break;
             case 'a' :
                 delta.x += speed;
@@ -113,7 +161,22 @@ const updatePosition = () => {
         }
     }
     position.add(delta);
-    fbxObject.position.copy(position);
+    if(fbxObject) fbxObject.position.copy(position);
+}
+
+const startAnimation = (index) => { 
+        if(modelAnimations.length > 0){ 
+            const currentAnimation = modelAnimations[index]
+            currentAnimation.play() 
+            currentAnimationIndex = index
+        }
+}
+const stopCurrentAnimation = (index) => {
+        if(modelAnimations.length > 0 && currentAnimationIndex != undefined){ 
+            const currentAnimation = modelAnimations[index]
+            currentAnimation.stop() 
+            currentAnimationIndex = undefined;
+        }
 }
 
 window.addEventListener('resize', onWindowResize, false)
@@ -127,16 +190,21 @@ function onWindowResize() {
 const stats = new Stats()
 document.body.appendChild(stats.dom)
 
+const clock = new THREE.Clock()
+
 function animate() {
     requestAnimationFrame(animate)
 
     controls.update()
+
+    if(animationReady) mixer.update(clock.getDelta())
 
     render()
 
     updatePosition();
 
     stats.update()
+
 }
 
 function render() {
