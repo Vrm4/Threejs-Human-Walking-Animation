@@ -54,7 +54,6 @@ scene.add( mesh );
 let mixer;
 let animationReady = false;
 let modelAnimations = [];
-let animationActive = false
 let currentAnimationIndex ; 
 let fbxObject ;
 const fbxLoader = new FBXLoader()
@@ -156,12 +155,10 @@ const position = new THREE.Vector3(); ;
 const speed = 0.01
 const delta = new THREE.Vector3()
 
-let keyPressed = {};
 let keysHeldDown = []
 
 window.addEventListener('keydown' , (e) => { 
     const key = e.key.toLowerCase();
-    keyPressed['hold'] = true;
     const controlArrayValue = keysHeldDown.includes(key)
     if(!controlArrayValue){
         keysHeldDown.push(key)
@@ -171,7 +168,6 @@ window.addEventListener('keydown' , (e) => {
 })
 document.addEventListener('keyup', function(e) {
     const key = e.key.toLowerCase();
-    keyPressed['hold'] = false;
     keysHeldDown.splice(keysHeldDown.indexOf(key), 1);
     console.log(keysHeldDown)
     stopCurrentAnimation()
@@ -179,7 +175,6 @@ document.addEventListener('keyup', function(e) {
 
 const updatePosition = () => { 
     delta.set(0, 0, 0);
-    if(keyPressed['hold'] != false){
         if(keysHeldDown.length > 0){
             if(checkIfThereIs('w') && checkIfThereIs('a')){
                 delta.z += speed;
@@ -203,30 +198,25 @@ const updatePosition = () => {
                 startAnimation(3);
             }
         }
-    }
+
     position.add(delta);
     if(fbxObject) fbxObject.position.copy(position);
 }
 
 const startAnimation =  async(index) => { 
-        if(modelAnimations.length > 0 && animationActive === false){ 
-            await stopCurrentAnimation()
+        await stopCurrentAnimation()
+        if(modelAnimations.length > 0){ 
             const currentAnimation = modelAnimations[index]
             currentAnimation.play() 
             currentAnimationIndex = index
-            animationActive = true
         }
 }
-const stopCurrentAnimation =  () => {
-    return new Promise( resolve => {
+const stopCurrentAnimation = () => {
         if(modelAnimations.length > 0 && currentAnimationIndex != undefined && modelAnimations[currentAnimationIndex]){ 
             const currentAnimation = modelAnimations[currentAnimationIndex]
             currentAnimation.stop() 
             currentAnimationIndex = undefined;
-            animationActive = false
-        }
-        resolve()
-    })
+        }    
 }
 const checkIfThereIs = (value) => {
     const index = keysHeldDown.indexOf(value);
