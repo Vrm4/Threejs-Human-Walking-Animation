@@ -101,7 +101,7 @@ fbxLoader.load(
                         modelAnimation.tracks.shift()
                         const animationAction = mixer.clipAction(modelAnimation)
                         modelAnimations.push(animationAction)
-                        fbxLoader.load('models/Standing Aim Walk Right.fbx' , (object) => {
+                        fbxLoader.load('models/Walking Arc Left.fbx' , (object) => {
                             let modelAnimation = object.animations[0]
                             modelAnimation.tracks.shift()
                             const animationAction = mixer.clipAction(modelAnimation)
@@ -156,6 +156,7 @@ const speed = 0.01
 const delta = new THREE.Vector3()
 
 let keysHeldDown = []
+let animationStopped = false;
 
 window.addEventListener('keydown' , (e) => { 
     const key = e.key.toLowerCase();
@@ -166,23 +167,31 @@ window.addEventListener('keydown' , (e) => {
     console.log(keysHeldDown)
     
 })
+
 document.addEventListener('keyup', function(e) {
     const key = e.key.toLowerCase();
     keysHeldDown.splice(keysHeldDown.indexOf(key), 1);
     console.log(keysHeldDown)
     stopCurrentAnimation()
 });
-
 const updatePosition = () => { 
     delta.set(0, 0, 0);
         if(keysHeldDown.length > 0){
             if(checkIfThereIs('w') && checkIfThereIs('a')){
                 delta.z += speed;
                 delta.x += speed;
+                if (!animationStopped) {
+                    stopCurrentAnimation();
+                    animationStopped = true;
+                }
                 startAnimation(4);
             } else if(checkIfThereIs('w') && checkIfThereIs('d')){
                 delta.z += speed;
                 delta.x -= speed;
+                if (!animationStopped) {
+                    stopCurrentAnimation();
+                    animationStopped = true;
+                }
                 startAnimation(4);
             } else if(checkIfThereIs('w') && keysHeldDown.length === 1){
                 delta.z += speed;
@@ -203,8 +212,7 @@ const updatePosition = () => {
     if(fbxObject) fbxObject.position.copy(position);
 }
 
-const startAnimation =  async(index) => { 
-        await stopCurrentAnimation()
+const startAnimation =  (index) => { 
         if(modelAnimations.length > 0){ 
             const currentAnimation = modelAnimations[index]
             currentAnimation.play() 
@@ -212,17 +220,24 @@ const startAnimation =  async(index) => {
         }
 }
 const stopCurrentAnimation = () => {
-        if(modelAnimations.length > 0 && currentAnimationIndex != undefined && modelAnimations[currentAnimationIndex]){ 
-            const currentAnimation = modelAnimations[currentAnimationIndex]
-            currentAnimation.stop() 
-            currentAnimationIndex = undefined;
-        }    
-}
+    if (modelAnimations.length > 0 && currentAnimationIndex !== undefined && modelAnimations[currentAnimationIndex]) {
+      const currentAnimation = modelAnimations[currentAnimationIndex];
+      currentAnimation.stop();
+      const lastElement = keysHeldDown[keysHeldDown.length - 1];
+      if (lastElement === 'w') currentAnimationIndex = 0;
+      if (lastElement === 's') currentAnimationIndex = 1;
+      if (lastElement === 'a') currentAnimationIndex = 2;
+      if (lastElement === 'd') currentAnimationIndex = 3;
+      const currentAnimation2 = modelAnimations[currentAnimationIndex];
+      currentAnimation2.stop();
+      currentAnimationIndex = undefined;
+      animationStopped = false;
+    }
+  }
 const checkIfThereIs = (value) => {
     const index = keysHeldDown.indexOf(value);
     return index != -1 ? true : false
 }
-
 
 window.addEventListener('resize', onWindowResize, false)
 function onWindowResize() {
