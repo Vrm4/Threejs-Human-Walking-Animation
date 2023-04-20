@@ -66,17 +66,9 @@ fbxLoader.load(
                     element.material.transparent = false
                 }
                 if (element.isMesh) {
-                    element.material.metalness = 0;
-                    element.material.roughness = 0
-                    element.frustumCulled = false
-                    element.castShadow = true
-                    element.material.opacity = 1.0;
-                    element.material.depthWrite = true;
-                    element.material.depthTest = true;
                     element.material.side = THREE.DoubleSide;
                 }
-        })
-        
+        })        
         object.scale.set(.01, .01, .01)
         scene.add(object)
         fbxObject = object
@@ -173,6 +165,7 @@ document.addEventListener('keyup', function(e) {
     keysHeldDown.splice(keysHeldDown.indexOf(key), 1);
     console.log(keysHeldDown)
     stopCurrentAnimation()
+    fbxObject.rotation.y = 0
 });
 const updatePosition = () => { 
     delta.set(0, 0, 0);
@@ -180,25 +173,47 @@ const updatePosition = () => {
             if(checkIfThereIs('w') && checkIfThereIs('a')){
                 delta.z += speed;
                 delta.x += speed;
+                fbxObject.rotation.y = 0.5
                 if (!animationStopped) {
                     stopCurrentAnimation();
                     animationStopped = true;
                 }
-                startAnimation(4);
+                startAnimation(0);
             } else if(checkIfThereIs('w') && checkIfThereIs('d')){
                 delta.z += speed;
                 delta.x -= speed;
+                fbxObject.rotation.y = -0.5
                 if (!animationStopped) {
                     stopCurrentAnimation();
                     animationStopped = true;
                 }
-                startAnimation(4);
+                startAnimation(0);
+            } else if(checkIfThereIs('s') && checkIfThereIs('a')){
+                delta.z -= speed;
+                delta.x -= speed;
+                fbxObject.rotation.y = 0.5
+                if (!animationStopped) {
+                    stopCurrentAnimation();
+                    animationStopped = true;
+                }
+                startAnimation(1);
+            } else if(checkIfThereIs('s') && checkIfThereIs('d')){
+                delta.z -= speed;
+                delta.x += speed;
+                fbxObject.rotation.y = -0.5
+                if (!animationStopped) {
+                    stopCurrentAnimation();
+                    animationStopped = true;
+                }
+                startAnimation(1);
             } else if(checkIfThereIs('w') && keysHeldDown.length === 1){
+                fbxObject.rotation.y = 0
                 delta.z += speed;
                 startAnimation(0);
             } else if(checkIfThereIs('s') && keysHeldDown.length === 1){
                 delta.z -= speed;
                 startAnimation(1);
+                fbxObject.rotation.y = 0
             } else if(checkIfThereIs('a') && keysHeldDown.length === 1){
                 delta.x += speed;
                 startAnimation(2);
